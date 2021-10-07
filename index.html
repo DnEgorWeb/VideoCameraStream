@@ -1,11 +1,54 @@
-<video id="player" controls></video>
+<video id="player" muted width="800"></video>
+<div>
+  <button id="stopRecordingButton">Stop recording</button>
+  <button id="startRecordingButton">Start recording</button>
+</div>
 <script>
   var player = document.getElementById('player');
+  var recordedPlayer = document.getElementById('recorded_data');
+  var startRecordingButton = document.getElementById('startRecordingButton');
+  var stopRecordingButton = document.getElementById('stopRecordingButton');
 
-  var handleSuccess = function(stream) {
+  let currentStream = null;
+  let chunks = [];
+
+  var handleRecordStart = function(stream) {
+    currentStream = stream;
+    stopped = false;
+    const mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = function(blobEvent) {
+      if (blobEvent.data.size > 0) {
+        chunks.push(blobEvent.data);
+      }
+    }
+
+    mediaRecorder.addEventListener('stop', function() {
+      const videoBlob = new Blob(chunks, { type: chunks[0].type });
+      player.srcObject = videoBlob;
+      player.controls = true;
+      player.muted = false;
+    });
+
+    // start recording
+    mediaRecorder.start(500);
+    // stream recording video into the <video />
     player.srcObject = stream;
+    player.play();
   };
 
-  navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-      .then(handleSuccess)
+  startRecordingButton.addEventListener('click', function() {
+    player.pause();
+    currentStream = null;
+    chunks = [];
+    navigator.mediaDevices
+      .getUserMedia({ audio: true, video: true })
+      .then(handleRecordStart);
+  })
+
+  stopRecordingButton.addEventListener('click', function() {
+    if (!currentStream) return
+    player.pause();
+    currentStream.getTracks().forEach(track => track.stop());
+  })
 </script>
